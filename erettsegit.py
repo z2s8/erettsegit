@@ -1,5 +1,9 @@
 import argparse
 import datetime
+import sys
+import os
+import urllib.request
+import zipfile
 
 URL_TEMPLATE = "https://dari.oktatas.hu/kir/erettsegi/okev_doc/{}/{}"
 
@@ -97,9 +101,37 @@ def build_dl_links(year: int, month: int, documents):
 
   return current_links
 
+def dl_progressbar(block_num, block_size, total_size):
+  received = block_num * block_size
+  if total_size > 0:
+    percentage = received * 100 / total_size
+    progress = round(percentage / 0.7)
+    s = ("\r{}%\t".format(percentage) + progress * "\u2588"
+         (70 - progress) * ' ' + '|')
+    sys.stderr.write(s)
+    if received >= total_size:
+      sys.stderr.write("\n")
+  else:
+    sys.stderr.write("read {}\n".format(received,))
+
+def save_file(url, name): 
+  dl_file = urllib.request.URLopener()
+  try:
+    dl_file.retrieve(url, name)
+  except:
+    raise Exception("network error")
+
+  if name.endswith('.zip'):
+    zf = zipfile.ZipFile(name)
+    zf.extractall()
+    zf.close()
+    os.remove(name)
+
 def execute_payload(year, month, level):
   file_names = gen_file_names(year, month, level)
   dl_links = build_dl_links(year, month, file_names)
+  for dl_link, file_name in zip(dl_links, file_names):
+    save_file(dl_link, file_name)
 
 if __name__ == '__main__':
   setup_cli()
