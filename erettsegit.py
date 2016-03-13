@@ -59,6 +59,9 @@ def monthify(input_month):
     raise argparse.ArgumentTypeError('incorrect month')
 
 def levelify(input_level):
+  if input_level[0] == 'm': input_level = 'k'
+  if input_level[0] == 'a': input_level = 'e'
+
   if input_level[0] not in ['k', 'e']:
     raise argparse.ArgumentTypeError('incorrect level')
   return input_level[0]
@@ -101,6 +104,14 @@ def build_dl_links(year: int, month: int, documents):
 
   return current_links
 
+def create_and_enter_dl_dir(year, month, level):
+  dir_name = "{}-{}-{}".format(year, month, level)
+  try:
+    os.mkdir(dir_name)
+    os.chdir(dir_name)
+  except:
+    print('already downloaded')
+
 def dl_progressbar(block_num, block_size, total_size):
   received = block_num * block_size
   if total_size > 0:
@@ -130,8 +141,11 @@ def save_file(url, name):
 def execute_payload(year, month, level):
   file_names = gen_file_names(year, month, level)
   dl_links = build_dl_links(year, month, file_names)
+
+  create_and_enter_dl_dir(year, month, level)
   for dl_link, file_name in zip(dl_links, file_names):
     save_file(dl_link, file_name)
+  os.chdir('..')
 
 if __name__ == '__main__':
   setup_cli()
