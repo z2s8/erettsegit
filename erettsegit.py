@@ -18,6 +18,34 @@ FILE_NAME_TEMPLATES_V2 = ["{}_info_{}_fl.pdf", "{}_infofor_{}_fl.zip",
 
 FILE_NAME_TEMPLATES_V3 = ["{}_inf_{}_fl.pdf", "{}_inffor_{}_fl.zip",
                           "{}_inf_{}_ut.pdf", "{}_infmeg_{}_ut.zip"]
+
+def should_go_interactive():
+  if len(sys.argv) == 2 and sys.argv[1] in ['--interactive', '-i']:
+    return True
+  if sys.argv[0] == '':
+    return True
+  if os.name == 'nt' and 'PROMPT' not in os.environ:
+    return True
+  return False
+
+def start_ia_ui():
+  exit_code = 0
+  print('Erettsegi Downloader')
+
+  try:
+    year = yearify(input('year: '))
+    month = monthify(input('month: '))
+    level = levelify(input('level: '))
+    execute_payload(year, month, level, interactive=True)
+  except (argparse.ArgumentTypeError, OSError, Exception) as ex:
+    print(ex)
+    exit_code = 1
+  else:
+    print('done')
+  finally:
+    input('press enter to quit...')
+    exit(exit_code)
+
 def setup_cli():
   parser = argparse.ArgumentParser(description='Erettsegi Downloader')
   parser.add_argument('year', metavar='YEAR', type=yearify, help='year')
@@ -26,8 +54,11 @@ def setup_cli():
   parser.add_argument('--interactive', '-i', dest='interactive',
                       action='store_true', help='defaults to non-interactive')
 
-  args = parser.parse_args()
-  execute_payload(args.year, args.month, args.level)
+  if should_go_interactive():
+    start_ia_ui()
+  else:
+    args = parser.parse_args()
+    execute_payload(args.year, args.month, args.level)
 
 def yearify(input_year):
   year = None
@@ -109,26 +140,31 @@ def create_and_enter_dl_dir(year, month, level):
   try:
     os.mkdir(dir_name)
     os.chdir(dir_name)
-  except:
+  except OSError:
     print('already downloaded')
+    exit(1)
 
 def dl_progressbar(block_num, block_size, total_size):
+  return 'WIP'
   received = block_num * block_size
   if total_size > 0:
-    percentage = received * 100 / total_size
+    percentage = int(received * 100) / total_size
     progress = round(percentage / 0.7)
-    s = ("\r{}%\t".format(percentage) + progress * "\u2588"
-         (70 - progress) * ' ' + '|')
-    sys.stderr.write(s)
+    out = "\r{}%\t".format(percentage) + progress * "\u2588" \
+        + (70 - progress) * ' ' + '|'
+    sys.stderr.write(out)
     if received >= total_size:
       sys.stderr.write("\n")
   else:
     sys.stderr.write("read {}\n".format(received,))
 
-def save_file(url, name): 
+def save_file(url, name, interactive=False): 
   dl_file = urllib.request.URLopener()
   try:
-    dl_file.retrieve(url, name)
+    if interactive:
+      dl_file.retrieve(url, name, dl_progressbar)
+    else:
+      dl_file.retrieve(url, name, dl_progressbar)
   except:
     raise Exception("network error")
 
@@ -138,13 +174,13 @@ def save_file(url, name):
     zf.close()
     os.remove(name)
 
-def execute_payload(year, month, level):
+def execute_payload(year, month, level, interactive=False):
   file_names = gen_file_names(year, month, level)
   dl_links = build_dl_links(year, month, file_names)
 
   create_and_enter_dl_dir(year, month, level)
   for dl_link, file_name in zip(dl_links, file_names):
-    save_file(dl_link, file_name)
+    save_file(dl_link, file_name, interactive)
   os.chdir('..')
 
 if __name__ == '__main__':
