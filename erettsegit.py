@@ -145,18 +145,21 @@ def create_and_enter_dl_dir(year, month, level):
     exit(1)
 
 def dl_progressbar(block_num, block_size, total_size):
-  return 'WIP'
   received = block_num * block_size
   if total_size > 0:
     percentage = int(received * 100) / total_size
-    progress = round(percentage / 0.7)
-    out = "\r{}%\t".format(percentage) + progress * "\u2588" \
+    if percentage > 100:
+      percentage = 100
+    progress = round(percentage / (100 / 70))
+
+    out = "\r{:10.1f}%\t".format(percentage) + progress * "\u2588" \
         + (70 - progress) * ' ' + '|'
-    sys.stderr.write(out)
+    sys.stdout.write(out)
+    sys.stdout.flush()
     if received >= total_size:
-      sys.stderr.write("\n")
+      sys.stdout.write("\n")
   else:
-    sys.stderr.write("read {}\n".format(received,))
+    sys.stdout.write("read {}\n".format(received,))
 
 def save_file(url, name, interactive=False): 
   dl_file = urllib.request.URLopener()
@@ -164,7 +167,7 @@ def save_file(url, name, interactive=False):
     if interactive:
       dl_file.retrieve(url, name, dl_progressbar)
     else:
-      dl_file.retrieve(url, name, dl_progressbar)
+      dl_file.retrieve(url, name)
   except:
     raise Exception("network error")
 
