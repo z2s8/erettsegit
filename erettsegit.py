@@ -5,6 +5,8 @@ import os
 import urllib.request
 import zipfile
 
+VERSION = '0.0.1'
+
 URL_TEMPLATE = "https://dari.oktatas.hu/kir/erettsegi/okev_doc/{}/{}"
 
 FILE_NAME_TEMPLATES_V0 = ["{}_info_fl.pdf", "{}_infoforras_fl.zip",
@@ -20,6 +22,11 @@ FILE_NAME_TEMPLATES_V3 = ["{}_inf_{}_fl.pdf", "{}_inffor_{}_fl.zip",
                           "{}_inf_{}_ut.pdf", "{}_infmeg_{}_ut.zip"]
 
 
+class AppURLopener(urllib.request.FancyURLopener):
+    """FancyURLopener with precise User-Agent header"""
+    version = 'erettsegit/{} - github.com/z2s8/erettsegit'.format(VERSION)
+
+
 def should_go_interactive():
     if len(sys.argv) >= 2 and sys.argv[1] in ['--interactive', '-i']:
         return True  # interactive cli switch was provided
@@ -33,7 +40,7 @@ def should_go_interactive():
 
 def start_ia_ui():  # start the interactive UI
     exit_code = 0
-    print('Erettsegi Downloader')
+    print('erettsegit - Erettsegi Downloader - {}'.format(VERSION))
 
     try:
         year = yearify(input('year: '))
@@ -75,7 +82,7 @@ def yearify(input_year: str):
     except:
         raise argparse.ArgumentTypeError('incorrect year')
 
-    if 0 <= year <= 999:
+    if 0 <= year <= 99:
         year = 2000 + year  # e.g. fix 16 to 2016
     if not 2005 <= year <= datetime.date.today().year:
         raise argparse.ArgumentTypeError('incorrect year')
@@ -91,11 +98,11 @@ def monthify(input_month: str):
     except ValueError:  # try parsing as textual month
         first_letter = input_month[0].lower()
         if first_letter in ['m', 't']:
-            return 5  # for May, majus, tavasz, etc.
+            return 5   # for May, majus, tavasz, etc.
         elif first_letter in ['o', 'ő']:
             return 10  # for Oct, okt, ősz, etc.
         elif first_letter == 'f':
-            return 2
+            return 2   # for Feb, februar, etc.
 
     raise argparse.ArgumentTypeError('incorrect month')  # couldn't parse
 
@@ -185,7 +192,7 @@ def dl_progressbar(block_num, block_size, total_size):
 
 
 def save_file(url: str, name: str, interactive=False):
-    dl_file = urllib.request.URLopener()
+    dl_file = AppURLopener()
     try:
         if interactive:  # only display progress if in interactive mode
             dl_file.retrieve(url, name, dl_progressbar)
