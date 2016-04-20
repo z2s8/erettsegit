@@ -1,9 +1,12 @@
 import argparse
 import datetime
+import locale
+import re
 import sys
 import os
 import urllib.request
 import zipfile
+from enum import Enum
 
 VERSION = '0.0.1'
 
@@ -21,11 +24,53 @@ FILE_NAME_TEMPLATES_V2 = ["{}_info_{}_fl.pdf", "{}_infofor_{}_fl.zip",
 FILE_NAME_TEMPLATES_V3 = ["{}_inf_{}_fl.pdf", "{}_inffor_{}_fl.zip",
                           "{}_inf_{}_ut.pdf", "{}_infmeg_{}_ut.zip"]
 
+MessageType = Enum('MessageType', ['e_file', 'e_network',
+                             'e_year', 'e_month', 'e_level',
+                             'i_ok', 'i_quit'])
 
+MESSAGES = {'HU': {}, 'EN': {}}
+
+MESSAGES['EN'] = {
+    MessageType.e_file: 'already downloaded',
+    MessageType.e_network: 'a network error occured',
+    MessageType.e_year: 'incorrect year',
+    MessageType.e_month: 'incorrect month',
+    MessageType.e_level: 'incorrect level',
+    MessageType.i_ok: 'done',
+    MessageType.i_quit: 'press enter to quit...'
+}
+
+MESSAGES['HU'] = {
+    MessageType.e_file: 'már letöltve',
+    MessageType.e_network: 'hálózati hiba történt',
+    MessageType.e_year: 'hibás év',
+    MessageType.e_month: 'hibás hónap',
+    MessageType.e_level: 'hibás szint',
+    MessageType.i_ok: 'kész',
+    MessageType.i_quit: 'enter a kilépéshez...'
+}
+
+# FancyURLopener with precise User-Agent header
 class AppURLopener(urllib.request.FancyURLopener):
-    """FancyURLopener with precise User-Agent header"""
     version = 'erettsegit/{} - github.com/z2s8/erettsegit'.format(VERSION)
 
+def get_lang():
+    if os.getenv('ERETTSEGIT_LANG') is not None:
+        return os.getenv('ERETTSEGIT_LANG')
+
+    sys_lang_codes = locale.getdefaultlocale()[0]
+    hun_regex = r'\bHU(N)?\b'
+    for lang_code in re.split(r'[-_/. ]', sys_lang_codes):
+        if re.search(hun_regex, lang_code, flags=re.IGNORECASE) is not None:
+            os.environ['ERETTSEGIT_LANG'] = 'HU'
+            return 'HU'
+
+    os.environ['ERETTSEGIT_LANG'] = 'EN'
+    return 'EN'
+
+def message_for(event):
+    lang = get_lang()
+    return MESSAGES[lang][event]
 
 def should_go_interactive():
     if len(sys.argv) >= 2 and sys.argv[1] in ['--interactive', '-i']:
@@ -51,9 +96,9 @@ def start_ia_ui():  # start the interactive UI
         print(ex)
         exit_code = 1
     else:
-        print('done')
+        print(message_for(MessageType.i_ok))
     finally:
-        input('press enter to quit...')
+        input(message_for(MessageType.i_quit))
         exit(exit_code)
 
 
@@ -80,12 +125,12 @@ def yearify(input_year: str):
     try:
         year = int(input_year)
     except:
-        raise argparse.ArgumentTypeError('incorrect year')
+        raise argparse.ArgumentTypeError(message_for(MessageType.e_year))
 
     if 0 <= year <= 99:
         year = 2000 + year  # e.g. fix 16 to 2016
     if not 2005 <= year <= datetime.date.today().year:
-        raise argparse.ArgumentTypeError('incorrect year')
+        raise argparse.ArgumentTypeError(message_for(MessageType.e_year))
 
     return year
 
@@ -104,15 +149,15 @@ def monthify(input_month: str):
         elif first_letter == 'f':
             return 2   # for Feb, februar, etc.
 
-    raise argparse.ArgumentTypeError('incorrect month')  # couldn't parse
+    raise argparse.ArgumentTypeError(message_for(MessageType.e_month))  # couldn't parse
 
 
 def levelify(input_level: str):
-    if input_level[0] == 'm': input_level = 'k'  # mid -> (k)ozep
-    if input_level[0] == 'a': input_level = 'e'  # advanced -> (e)melt
+    if input_level[0] == 'm': input_level = 'k'  # mid -> (k)ozep [HUN]
+    if input_level[0] == 'a': input_level = 'e'  # advanced -> (e)melt [HUN]
 
     if input_level[0] not in ['k', 'e']:
-        raise argparse.ArgumentTypeError('incorrect level')
+        raise argparse.ArgumentTypeError(message_for(MessageType.e_level))
     return input_level[0]
 
 # gen_file_names and build_dl_links tries to handle
@@ -166,29 +211,26 @@ def create_and_enter_dl_dir(year: int, month: int, level: str):
         os.mkdir(dir_name)
         os.chdir(dir_name)
     except OSError:
-        print('already downloaded')
+        print(message_for(MessageType.e_file))  # dir already exists
         exit(1)
 
 
 def dl_progressbar(block_num, block_size, total_size):
     received = block_num * block_size
-    if total_size > 0:
-        percentage = int(received * 100) / total_size
-        if percentage > 100:
-            # avoid displaying more than 100% from rounding errors..
-            percentage = 100
-        progress = round(percentage / (100 / 65))
+    percentage = int(received * 100) / total_size
+    if percentage > 100:
+        # avoid displaying more than 100% from rounding errors..
+        percentage = 100
+    progress = round(percentage / (100 / 65))
 
-        out = "\r{:10.1f}%   {}".format(percentage,  # "the progressbar"
-                                        progress * "\u2588" +
-                                        (65 - progress) * ' ' + '|')
-        sys.stdout.write(out)
-        sys.stdout.flush()
+    out = "\r{:10.1f}%   {}".format(percentage,  # "DIY progressbar"
+                                    progress * "\u2588" +
+                                    (65 - progress) * ' ' + '|')
+    sys.stdout.write(out)
+    sys.stdout.flush()
 
-        if received >= total_size:
-            sys.stdout.write("\n")  # file done
-    else:
-        print("error, read: {}\n".format(received, ))
+    if received >= total_size:
+        sys.stdout.write("\n")  # file done
 
 
 def save_file(url: str, name: str, interactive=False):
@@ -199,7 +241,7 @@ def save_file(url: str, name: str, interactive=False):
         else:  # download sliently, exit code indicates result
             dl_file.retrieve(url, name)
     except:
-        raise ConnectionError("a network error occured")
+        raise ConnectionError(message_for(MessageType.e_network))
 
     if name.endswith('.zip'):  # extract it if it's a zip
         archive = zipfile.ZipFile(name)
