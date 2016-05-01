@@ -1,5 +1,7 @@
+import os
 import unittest
 from erettsegit import argparse, yearify, monthify, levelify
+from erettsegit import MessageType, message_for
 
 
 class TestErettsegit(unittest.TestCase):
@@ -21,3 +23,11 @@ class TestErettsegit(unittest.TestCase):
     def test_levelify_handles_multi_lang(self):
         self.assertEqual(levelify('mid-level'), 'k')
         self.assertEqual(levelify('advanced'), 'e')
+
+    def test_messages_get_interpolated_with_extra(self):
+        os.environ['ERETTSEGIT_LANG'] = 'EN'
+        self.assertEqual(message_for(MessageType.e_input, MessageType.c_year),
+                         'incorrect year')
+
+    def test_messages_ignore_unnecessary_extra(self):
+        self.assertNotIn('None', message_for(MessageType.i_quit, extra=None))
