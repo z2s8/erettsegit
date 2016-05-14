@@ -70,7 +70,7 @@ def get_lang():
     if os.getenv('ERETTSEGIT_LANG') is not None:
         return os.getenv('ERETTSEGIT_LANG')
 
-    sys_lang_codes = locale.getdefaultlocale()[0]
+    sys_lang_codes = str(locale.getdefaultlocale()[0])
     hun_regex = r'\bHU(N)?\b'
     for lang_code in re.split(r'[-_/. ]', sys_lang_codes):
         if re.search(hun_regex, lang_code, flags=re.IGNORECASE) is not None:
