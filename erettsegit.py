@@ -254,6 +254,12 @@ def create_and_enter_dl_dir(year: int, month: int, level: str,
 
 
 def dl_progressbar(block_num, block_size, total_size):
+    filler = u'█'
+    try:
+        print("{}\r".format(filler), end='', flush=True)
+    except UnicodeEncodeError:
+        filler = '#'
+
     received = block_num * block_size
     percentage = int(received * 100) / total_size
     if percentage > 100:
@@ -262,15 +268,13 @@ def dl_progressbar(block_num, block_size, total_size):
     progress = round(percentage / (100 / 65))
 
     # "DIY progressbar"
-    out = "\r{:10.1f}%   {}" \
-          .format(percentage, progress * u'█' + (65 - progress) * ' ' + '|')
+    out = "\r{:10.1f}%   {}\b" \
+          .format(percentage, filler * progress + (65 - progress) * ' ' + '|')
 
-    sys.stdout.write(out)
-    sys.stdout.flush()
+    print(out, end='', flush=True)
 
     if received >= total_size:  # file done
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+        print(flush=True)
 
 
 def save_file(url: str, name: str, interactive=False):
