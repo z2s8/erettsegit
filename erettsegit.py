@@ -10,6 +10,8 @@ from enum import Enum
 
 VERSION = '0.0.1'
 
+URL_TEMPLATE_HOTFIX_16 = "http://dload.oktatas.educatio.hu/erettsegi/feladatok_2016tavasz_{}/{}"
+
 URL_TEMPLATE = "https://dari.oktatas.hu/kir/erettsegi/okev_doc/{}/{}"
 
 FILE_NAME_TEMPLATES_V0 = ["{}_info_fl.pdf", "{}_infoforras_fl.zip",
@@ -193,7 +195,7 @@ def levelify(input_level: str):
     return input_level[0]
 
 # gen_file_names and build_dl_links tries to handle
-# the inconsistent naming of downloads on the officeal site
+# the inconsistent naming of downloads on the offical site
 
 
 def gen_file_names(year: int, month: int, level: str):
@@ -220,8 +222,10 @@ def gen_file_names(year: int, month: int, level: str):
     return current_files
 
 
-def build_dl_links(year: int, month: int, documents):
-    # List[str] is only supported since 3.5, so leaving out for now (documents)
+# List[str] is only supported since 3.5, so leaving out for now (documents)
+def build_dl_links(year: int, month: int, level: str, documents,
+                   url_template=URL_TEMPLATE):
+
     date_part = "erettsegi_{}".format(year)
     if month == 10 and year > 2006:
         date_part += '/oktober'
@@ -230,9 +234,18 @@ def build_dl_links(year: int, month: int, documents):
     elif month == 2 and year == 2006:
         date_part = '2006_1'
 
+    # HOTFIX 2016: the files of the current exam season haven't been uploaded
+    # yet to the current offical site (oktatas.hu), only to the old,
+    # offically deprected one (educatio.hu)
+    # Until it's resolved, we'll use a special case for getting the latest
+    # excercises, temporarily
+    if month == 5 and year == 2016:
+        url_template = URL_TEMPLATE_HOTFIX_16
+        date_part = 'kozep' if level == 'k' else 'emelt'
+
     current_links = []  # links to download
     for document in documents:
-        current_links.append(URL_TEMPLATE.format(date_part, document))
+        current_links.append(url_template.format(date_part, document))
 
     return current_links
 
@@ -299,7 +312,7 @@ def save_file(url: str, name: str, interactive=False):
 def execute_payload(year: int, month: int, level: str, interactive=False):
     # generates links, downloads from them, and extracts archives
     file_names = gen_file_names(year, month, level)
-    dl_links = build_dl_links(year, month, file_names)
+    dl_links = build_dl_links(year, month, level, file_names)
 
     create_and_enter_dl_dir(year, month, level, interactive)
     for dl_link, file_name in zip(dl_links, file_names):
