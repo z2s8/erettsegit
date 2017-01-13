@@ -8,12 +8,12 @@ import urllib.request
 import zipfile
 from enum import Enum
 
-VERSION = '0.0.1'
+VERSION = '0.0.2'
 
-URL_TEMPLATE_HOTFIX_16 = "http://dload.oktatas.educatio.hu/erettsegi/feladatok_2016tavasz_{}/{}"
-URL_TEMPLATE_HOTFIX_16_2 = "https://www.oktatas.hu/bin/content/dload/erettsegi/feladatok_2016osz_{}/{}"
-
-URL_TEMPLATE = "https://dari.oktatas.hu/kir/erettsegi/okev_doc/{}/{}"
+# TODO: seems they are moving all files under https://www.oktatas.hu/bin/content/dload/erettsegi/
+URL_TEMPLATE_V0 = "https://dari.oktatas.hu/kir/erettsegi/okev_doc/{}/{}"
+URL_TEMPLATE_V1 = "http://dload.oktatas.educatio.hu/erettsegi/feladatok_2016tavasz_{}/{}"
+URL_TEMPLATE_V2 = "https://www.oktatas.hu/bin/content/dload/erettsegi/feladatok_2016osz_{}/{}"
 
 FILE_NAME_TEMPLATES_V0 = ["{}_info_fl.pdf", "{}_infoforras_fl.zip",
                           "{}_info_ut.pdf", "{}_infomegoldas_ut.zip"]
@@ -187,13 +187,14 @@ def monthify(input_month: str):
 
 
 def levelify(input_level: str):
-    if input_level[0] == 'm': input_level = 'k'  # mid -> (k)ozep [HUN]
-    if input_level[0] == 'a': input_level = 'e'  # advanced -> (e)melt [HUN]
+    rel_letter = input_level[0].lower()
+    if rel_letter == 'm': rel_letter = 'k'  # mid -> (k)ozep [HUN]
+    if rel_letter == 'a': rel_letter = 'e'  # advanced -> (e)melt [HUN]
 
-    if input_level[0] not in ['k', 'e']:
+    if rel_letter not in ['k', 'e']:
         raise argparse.ArgumentTypeError(
             message_for(MessageType.e_input, MessageType.c_level))
-    return input_level[0]
+    return rel_letter
 
 # gen_file_names and build_dl_links tries to handle
 # the inconsistent naming of downloads on the offical site
@@ -225,7 +226,7 @@ def gen_file_names(year: int, month: int, level: str):
 
 # List[str] is only supported since 3.5, so leaving out for now (documents)
 def build_dl_links(year: int, month: int, level: str, documents,
-                   url_template=URL_TEMPLATE):
+                   url_template=URL_TEMPLATE_V0):
 
     date_part = "erettsegi_{}".format(year)
     if month == 10 and year > 2006:
@@ -235,17 +236,9 @@ def build_dl_links(year: int, month: int, level: str, documents,
     elif month == 2 and year == 2006:
         date_part = '2006_1'
 
-    # HOTFIX 2016: the files of the current exam season haven't been uploaded
-    # yet to the current offical site (oktatas.hu), only to the old,
-    # offically deprected one (educatio.hu)
-    # Until it's resolved, we'll use a special case for getting the latest
-    # excercises, temporarily
-    if month == 5 and year == 2016:
-        url_template = URL_TEMPLATE_HOTFIX_16
-        date_part = 'kozep' if level == 'k' else 'emelt'
-
-    if month == 10 and year == 2016:
-        url_template = URL_TEMPLATE_HOTFIX_16_2
+    # HOTFIX 2016: there's some serious inconsistency with this year's links
+    if year == 2016:
+        url_template = URL_TEMPLATE_V1 if month == 5 else URL_TEMPLATE_V2
         date_part = 'kozep' if level == 'k' else 'emelt'
 
     current_links = []  # links to download
