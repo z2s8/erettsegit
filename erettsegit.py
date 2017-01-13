@@ -11,6 +11,7 @@ from enum import Enum
 VERSION = '0.0.1'
 
 URL_TEMPLATE_HOTFIX_16 = "http://dload.oktatas.educatio.hu/erettsegi/feladatok_2016tavasz_{}/{}"
+URL_TEMPLATE_HOTFIX_16_2 = "https://www.oktatas.hu/bin/content/dload/erettsegi/feladatok_2016osz_{}/{}"
 
 URL_TEMPLATE = "https://dari.oktatas.hu/kir/erettsegi/okev_doc/{}/{}"
 
@@ -241,6 +242,10 @@ def build_dl_links(year: int, month: int, level: str, documents,
     # excercises, temporarily
     if month == 5 and year == 2016:
         url_template = URL_TEMPLATE_HOTFIX_16
+        date_part = 'kozep' if level == 'k' else 'emelt'
+
+    if month == 10 and year == 2016:
+        url_template = URL_TEMPLATE_HOTFIX_16_2
         date_part = 'kozep' if level == 'k' else 'emelt'
 
     current_links = []  # links to download
